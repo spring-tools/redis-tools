@@ -1,6 +1,6 @@
 package io.github.spring.tools.redis.decorator;
 
-import io.github.spring.tools.redis.RedisLock;
+import io.github.spring.tools.redis.IRedisLock;
 import io.github.spring.tools.redis.RedisLockStatus;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -42,8 +42,18 @@ public class ReentrantLockDecorator extends AbsLockDecorator {
    *
    * @param delegate 实际执行者
    */
-  public ReentrantLockDecorator(RedisLock delegate) {
+  public ReentrantLockDecorator(IRedisLock delegate) {
     super(delegate);
+  }
+
+
+  @Override
+  public boolean tryLock() {
+    try {
+      return tryLock(-1, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      return false;
+    }
   }
 
   @Override
@@ -55,7 +65,7 @@ public class ReentrantLockDecorator extends AbsLockDecorator {
         return true;
       }else {
         // 获取锁
-        if (delegate.tryLock(time, unit)) {
+        if (time == -1 ? delegate.tryLock() : delegate.tryLock(time, unit)) {
           debugMessage("获取新锁成功");
           setToThread();
           return true;
@@ -77,7 +87,6 @@ public class ReentrantLockDecorator extends AbsLockDecorator {
 
   @Override
   public void unlock() {
-
     // 如果当前清理成功
     if (clearFromThread()) {
       delegate.unlock();
@@ -103,6 +112,8 @@ public class ReentrantLockDecorator extends AbsLockDecorator {
       // 移除当期那锁
       throw new TimeoutException(getKey());
     }
+    // 检查是否在同一个 thread 中
+
     return true;
   }
 
@@ -122,7 +133,7 @@ public class ReentrantLockDecorator extends AbsLockDecorator {
   /**
    * 从当前线程清空
    */
-  boolean clearFromThread(){
+  boolean clearFromThread() {
     // 获取锁
     ReentrantLockDecorator lock = THREAD_LOCKS.get().get(getKey());
     if (lock != null && lock == this){

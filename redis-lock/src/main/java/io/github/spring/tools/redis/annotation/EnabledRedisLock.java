@@ -1,7 +1,7 @@
 package io.github.spring.tools.redis.annotation;
 
 
-import net.madtiger.lock.configuration.SharedLockConfigurationImportSelector;
+import io.github.spring.tools.redis.annotation.configuration.RedisLockConfigurationImportSelector;
 import org.springframework.context.annotation.Import;
 
 import java.lang.annotation.*;
@@ -14,5 +14,5 @@ import java.lang.annotation.*;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@Import(SharedLockConfigurationImportSelector.class)
+@Import(RedisLockConfigurationImportSelector.class)
 public @interface EnabledRedisLock {}

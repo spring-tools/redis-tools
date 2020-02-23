@@ -18,9 +18,9 @@ import java.util.concurrent.locks.Lock;
  * @version 1.0.0
  * @see Lock
  * @see AutoCloseable
- * @see ILockExecutable
+ * @see ILockTemplate
  */
-public interface ILock extends Lock, AutoCloseable, ILockExecutable {
+public interface ILock extends Lock, AutoCloseable, ILockTemplate {
 
     /**
      * 获取所的状态
@@ -94,6 +94,18 @@ public interface ILock extends Lock, AutoCloseable, ILockExecutable {
      */
     boolean interrupted();
 
+    /**
+     * 执行需要锁的函数
+     * @param callback 获取锁成功执行的函数
+     * @param faultCallback 获取所失败后降级参数，=null 时，获取失败将抛出 SharedLockTimeoutException
+     * @param rollback 释放资源失败回退操作
+     * @param time 等待时间
+     * @param unit 时间单位
+     * @param <T> 返回值类型
+     * @return 返回数据
+     * @throws TimeoutLockException 超时异常
+     * @throws Throwable 其他业务异常
+     */
     @Override
     default <T> T execute(IDoCallback<T> callback, IDoCallback<T> faultCallback, IDoCallback<T> rollback, int time, TimeUnit unit) throws TimeoutLockException, Throwable {
         Objects.requireNonNull(unit);
@@ -121,6 +133,10 @@ public interface ILock extends Lock, AutoCloseable, ILockExecutable {
         return result;
     }
 
+    /**
+     * try-with-resource close
+     * @throws Exception 关闭失败异常
+     */
     @Override
     default void close() throws Exception {
         unlock();
@@ -135,11 +151,19 @@ public interface ILock extends Lock, AutoCloseable, ILockExecutable {
         throw new UnsupportedOperationException("newCondition 不支持");
     }
 
+    /**
+     * 锁定，此方法不支持
+     */
     @Override
     default void lock() {
         throw new UnsupportedOperationException("lock  方法不支持");
     }
 
+
+    /**
+     * 可重复线程锁，不支持
+     * @throws InterruptedException
+     */
     @Override
     default void lockInterruptibly() throws InterruptedException {
         throw new UnsupportedOperationException("lockInterruptibly  方法不支持");

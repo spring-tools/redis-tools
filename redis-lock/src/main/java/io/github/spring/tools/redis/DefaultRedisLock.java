@@ -3,12 +3,17 @@ package io.github.spring.tools.redis;
 import io.github.spring.tools.redis.capable.ILockWritable;
 import io.github.spring.tools.redis.exception.UnLockFailException;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.util.StringUtils;
 
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import static io.github.spring.tools.redis.RedisLockStatus.*;
+import static io.github.spring.tools.redis.RedisLockStatus.TIMEOUT;
 
 /**
  * 默认的具体Redis锁实现类
@@ -18,7 +23,8 @@ import java.util.concurrent.TimeUnit;
  * @version 1.0.0
  */
 @Data
-public class DefaultRedisLock implements RedisLock, ILockWritable {
+@Slf4j
+public class DefaultRedisLock implements IRedisLock, ILockWritable {
 
     /**
      * 状态
@@ -112,28 +118,36 @@ public class DefaultRedisLock implements RedisLock, ILockWritable {
         // 获取锁
         if (doAcquire(this)){
             setStatus(RedisLockStatus.LOCKED);
+            debugMessage("获取锁成功");
             return true;
         }
+        debugMessage("获取锁失败");
         return false;
     }
 
     @Override
     public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
         Objects.requireNonNull(unit);
-        long endTime = System.currentTimeMillis() + unit.toMillis(time);
-        do{
-            // 检查是否取消
-            if (isStatus(RedisLockStatus.CANCEL)) {
-                throw new InterruptedException();
-            }
-            // 如果获取成功
-           if (tryLock()) {
+        // 检查状态
+        if (getStatus() != NEW) {
+            throw new InterruptedException(String.format("%s 锁的当前状态是 %s 不能再次获取锁", getKey(), getStatus()));
+        }
+        // 获取成功
+        try{
+            if (doAcquire(time, unit)) {
+                setStatus(LOCKED);
                 return true;
-           }
-           // sleep 一下
-            Thread.sleep(getSleepMills());
-        }while(System.currentTimeMillis() < endTime);
-        return false;
+            }else {
+                // 如果 是 新的，则设置为 长时间
+                if (getStatus() == NEW) {
+                    setStatus(TIMEOUT);
+                }
+                return false;
+            }
+        }catch (TimeoutException ex){
+            setStatus(TIMEOUT);
+            return false;
+        }
     }
 
     @Override
@@ -141,11 +155,14 @@ public class DefaultRedisLock implements RedisLock, ILockWritable {
         try {
             if (doRelease(this)) {
                 unlocked(true);
+                debugMessage("解锁成功");
             }else {
+                debugMessage("解锁失败");
                 unlocked(false);
             }
         } catch (UnLockFailException e) {
            unlocked(false);
+            debugMessage("解锁失败");
            if (throwableException != null) {
                throw throwableException;
            }
@@ -157,9 +174,59 @@ public class DefaultRedisLock implements RedisLock, ILockWritable {
      * @param lock 需要获取所的对象
      * @return 获取所结果
      */
-    private boolean doAcquire(RedisLock lock) {
+    private boolean doAcquire(IRedisLock lock) {
         this.uuid = UUID.randomUUID().toString();
-        return redisLockClient.setNX(lock.getKey(), this.uuid, lock.getLockSeconds());
+        return redisLockClient.setNx(lock.getKey(), this.uuid, lock.getLockSeconds());
+    }
+
+
+    /**
+     * 支持自旋的 获取
+     * @param time
+     * @param unit
+     * @return
+     * @throws InterruptedException
+     */
+    private boolean doAcquire(long time, TimeUnit unit) throws InterruptedException, TimeoutException {
+        long timeout = System.currentTimeMillis() + unit.toMillis(time);
+        int times;
+        int timesCount = 0;
+        do {
+            times = getSpinTimes();
+            // 自旋 times 次
+            for (; ;) {
+                checkTimeout(timeout);
+                // 如果获取成功则返回成功
+                if (tryLock()){
+                    debugMessage(String.format(" %s次获取成功，自旋 %s 次", timesCount, getSpinTimes() - times + 1));
+                    return true;
+                }
+                if (--times <= 0){
+                    break;
+                }
+                timesCount ++;
+                debugMessage(String.format(" %s次获取失败，自旋 %s 次", timesCount, getSpinTimes() - times));
+            }
+            // 随机休眠
+            try {
+                debugMessage(String.format(" %s次获取失败，自旋失败，开始随机休眠", timesCount));
+                Thread.sleep(getSleepMills());
+            } catch (Exception e) {
+                return  false;
+            }
+        } while (true);
+    }
+
+
+    /**
+     * 检查 超时
+     * @param timeout 检查的时间
+     * @throws TimeoutException 超时异常
+     */
+    private void checkTimeout(long timeout) throws TimeoutException {
+        if (System.currentTimeMillis() >= timeout){
+            throw new TimeoutException(getKey());
+        }
     }
 
     /**
@@ -168,7 +235,7 @@ public class DefaultRedisLock implements RedisLock, ILockWritable {
      * @return 获取所结果
      * @throws UnLockFailException done 状态，释放失败，则抛出磁异常
      */
-    private boolean doRelease(RedisLock lock) throws UnLockFailException {
+    private boolean doRelease(IRedisLock lock) throws UnLockFailException {
         if (StringUtils.isEmpty(uuid)) {
             throw new IllegalArgumentException(String.format("redis 共享锁 %s provider data不存在", lock.getKey()));
         }
@@ -182,5 +249,14 @@ public class DefaultRedisLock implements RedisLock, ILockWritable {
             return redisLockClient.delete(key);
         }
         return false;
+    }
+
+
+    /**
+     * 来一个 debug 消息
+     * @param message 消息
+     */
+    protected void debugMessage(String message){
+        log.debug(String.format("%s --> %s 锁 %s", getClass().getSimpleName(), getKey(), message));
     }
 }

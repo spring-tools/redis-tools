@@ -33,13 +33,14 @@ public class RedislockUtils {
    * 装饰 共享锁服务
    * @param sharedLock 要包装的 服务
    * @param classes 装饰者类
+   * @param keyPrefix key 前缀
    * @return redis 结果
    */
-  public static synchronized RedisLock mergeEnv(RedisLock sharedLock, Set<Class<? extends AbsLockDecorator>> classes){
+  public static synchronized IRedisLock mergeEnv(IRedisLock sharedLock, Set<Class<? extends AbsLockDecorator>> classes, String keyPrefix){
     Objects.requireNonNull(sharedLock);
     RedisLockEnvironment environment = RedisLockEnvironment.getInstance();
     // 合并参数
-    environment.merge(sharedLock);
+    environment.merge(sharedLock, keyPrefix);
     // 合并处理装饰者类
     return doMergeDecoratorClasses(sharedLock, classes);
   }
@@ -50,7 +51,7 @@ public class RedislockUtils {
    * @param classes 装饰者
    * @return 结果
    */
-  private static RedisLock doMergeDecoratorClasses(RedisLock sharedLock, Set<Class<? extends AbsLockDecorator>> classes){
+  private static IRedisLock doMergeDecoratorClasses(IRedisLock sharedLock, Set<Class<? extends AbsLockDecorator>> classes){
     Objects.requireNonNull(classes);
     RedisLockEnvironment environment = RedisLockEnvironment.getInstance();
 
@@ -65,7 +66,7 @@ public class RedislockUtils {
     //逐个安装
     for (Class<? extends AbsLockDecorator>  decoratorClass : decoratorList) {
       try {
-        sharedLock = decoratorClass.getConstructor(RedisLock.class).newInstance(sharedLock);
+        sharedLock = decoratorClass.getConstructor(IRedisLock.class).newInstance(sharedLock);
       } catch (Exception e) {
         throw new IllegalArgumentException(e);
       }

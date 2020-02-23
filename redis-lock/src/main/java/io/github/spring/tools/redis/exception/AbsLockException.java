@@ -14,6 +14,8 @@ public class AbsLockException extends Exception{
    */
   protected String key;
 
+
+
   /**
    * 构造函数
    * @param key 释放的key

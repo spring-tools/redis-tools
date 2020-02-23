@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
  * @author Fenghu.Shi
  * @version 1.0.0
  */
-public interface ILockExecutable {
+public interface ILockTemplate {
 
     /**
      * 委托执行，支持降级和回滚，只尝试获取一次，失败立即返回
@@ -98,6 +98,6 @@ public interface ILockExecutable {
      * @throws Throwable 其他异常，包括业务异常等
      */
     default <T> T execute(IDoCallback<T> callback, int time, TimeUnit unit) throws TimeoutLockException, Throwable {
-        return execute(callback, time, unit);
+        return execute(callback, null, time, unit);
     }
 }

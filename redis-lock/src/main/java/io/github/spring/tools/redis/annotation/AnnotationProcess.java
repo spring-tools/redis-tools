@@ -1,7 +1,8 @@
 package io.github.spring.tools.redis.annotation;
 
-import io.github.spring.tools.redis.RedisLock;
+import io.github.spring.tools.redis.IRedisLock;
 import io.github.spring.tools.redis.RedisLockBuilder;
+import io.github.spring.tools.redis.exception.NoopLockException;
 import io.github.spring.tools.redis.exception.TimeoutLockException;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.reflect.MethodSignature;
@@ -17,7 +18,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 将  用于处理 含有 {@link RedisLocks} 注解的方法
+ * 将  用于处理 含有 {@link RedisLock} 注解的方法
  * @author Fenghu.Shi
  * @version 1.0
  * @see io.github.spring.tools.redis.RedisLockBuilder
@@ -45,7 +46,7 @@ public final class AnnotationProcess {
   public final Object handle(ProceedingJoinPoint jp) throws Throwable {
     MethodSignature signature = (MethodSignature) jp.getSignature();
     // 解析 ShareLock 注解
-    RedisLocks shareLockAnnotation = signature.getMethod().getAnnotation(RedisLocks.class);
+    RedisLock shareLockAnnotation = signature.getMethod().getAnnotation(RedisLock.class);
     // 如果不存在，则直接执行
     if (shareLockAnnotation == null) {
       return jp.proceed();
@@ -62,7 +63,7 @@ public final class AnnotationProcess {
    * @return 执行结果
    * @throws Throwable  其他异常
    */
-  private Object lockExecute(ProceedingJoinPoint jp, RedisLocks shareLockAnnotation) throws Throwable  {
+  private Object lockExecute(ProceedingJoinPoint jp, RedisLock shareLockAnnotation) throws Throwable  {
     MethodSignature signature = (MethodSignature) jp.getSignature();
     // 解析参数
     String[] parameterNames = signature.getParameterNames();
@@ -75,7 +76,7 @@ public final class AnnotationProcess {
     }
 
     // 获取锁对象
-    RedisLock lockObject = buildLockObject(shareLockAnnotation, jp.getTarget(), signature.getMethod(), jp.getArgs(), params);
+    IRedisLock lockObject = buildLockObject(shareLockAnnotation, jp.getTarget(), signature.getMethod(), jp.getArgs(), params);
     //执行结果
     Object processResultObject;
     try{
@@ -96,7 +97,7 @@ public final class AnnotationProcess {
     }
     Object rollbackData;
     // 是否需要回滚
-    if (lockObject.isRollback() && (rollbackData = rollback(jp, shareLockAnnotation)) != NOOP){
+    if (lockObject.isRollback() && (rollbackData = rollback(jp, shareLockAnnotation, lockObject.getKey())) != NOOP){
         processResultObject = rollbackData;
     }
     return processResultObject;
@@ -110,7 +111,7 @@ public final class AnnotationProcess {
    * @return 直接结果
    * @throws Throwable 异常
    */
-  private Object doExecute(RedisLock lock, ProceedingJoinPoint jp, RedisLocks shareLockAnnotation) throws Throwable{
+  private Object doExecute(IRedisLock lock, ProceedingJoinPoint jp, RedisLock shareLockAnnotation) throws Throwable{
     MethodSignature signature = (MethodSignature) jp.getSignature();
     // 如果获取所成功或者失败继续执行
     if (lock.isLocked()) {
@@ -118,24 +119,24 @@ public final class AnnotationProcess {
     }
     // 开始处理失败情况
     // 计算失败规则
-    FaultPolicy policy = shareLockAnnotation.faultPolicy() == FaultPolicy.AUTO && !RedisLocks.DEFAULT_METHOD.equals(shareLockAnnotation.fallbackMethod()) ? FaultPolicy.REPLACE : shareLockAnnotation.faultPolicy();
+    FaultPolicy policy = shareLockAnnotation.faultPolicy() == FaultPolicy.AUTO && !RedisLock.DEFAULT_METHOD.equals(shareLockAnnotation.fallbackMethod()) ? FaultPolicy.REPLACE : FaultPolicy.THROWABLE;
     // 1、啥也不做
     if (policy == FaultPolicy.DO_NOTHING){
       return faultDoNothing(signature, shareLockAnnotation);
     }
     // 2、继续
-    if (policy == FaultPolicy.CONTINUE){
+    else if (policy == FaultPolicy.CONTINUE){
       return jp.proceed();
     }
     // 3、回退
-    if (policy == FaultPolicy.REPLACE) {
+    else if (policy == FaultPolicy.REPLACE) {
       return faultCallback(jp, shareLockAnnotation.fallbackMethod());
     }
     // 4、抛出异常
-    if (policy == FaultPolicy.THROWABLE){
-      throw new TimeoutLockException(lock.getKey());
+    else {
+      // 如果 设置了 fault 异常
+      throw newThrowable(shareLockAnnotation.faultThrowableException(), lock.getKey());
     }
-    return NOOP;
   }
 
   /**
@@ -144,8 +145,8 @@ public final class AnnotationProcess {
    * @param shareLockAnnotation 注解
    * @return 执行结果
    */
-  private Object faultDoNothing(MethodSignature signature, RedisLocks shareLockAnnotation){
-    return signature.getReturnType().isPrimitive() && Number.class.isAssignableFrom(signature.getReturnType()) ? RedisLocks.FAULT_NUMBER_DEFAULT : null;
+  private Object faultDoNothing(MethodSignature signature, RedisLock shareLockAnnotation){
+    return signature.getReturnType().isPrimitive() && Number.class.isAssignableFrom(signature.getReturnType()) ? RedisLock.FAULT_NUMBER_DEFAULT : null;
   }
 
   /**
@@ -180,16 +181,41 @@ public final class AnnotationProcess {
    * 执行回滚
    * @param jp 切入点
    * @param shareLockAnnotation 锁注解
+   * @param key 锁定的key
+   * @return 执行结果
+   * @throws Throwable 失败异常
    */
-  private Object rollback(ProceedingJoinPoint jp, RedisLocks shareLockAnnotation)
-      throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+  private Object rollback(ProceedingJoinPoint jp, RedisLock shareLockAnnotation, String key) throws Throwable {
     MethodSignature signature = (MethodSignature) jp.getSignature();
     Method method = jp.getTarget().getClass().getMethod(shareLockAnnotation.rollbackMethod(), signature.getParameterTypes());
     if (method.getReturnType() != null && method.getReturnType().isAssignableFrom(((MethodSignature) jp.getSignature()).getReturnType())){
       return method.invoke(jp.getTarget(), jp.getArgs());
     } else {
+      // 如果 有 throwable 则 抛出异常，事务回滚
+      if (shareLockAnnotation.rollbackThrowableException() != NoopLockException.class){
+        throw newThrowable(shareLockAnnotation.rollbackThrowableException(), key);
+      }
       return NOOP;
     }
+  }
+
+  /**
+   * 获取构造函数
+   * @param clazz 要获取的类
+   * @param key 当期那锁的 key
+   * @param <T> 类类型
+   * @return 构造函数
+   * @throws NoSuchMethodException 如果获取失败抛出异常
+   */
+  private <T> T newThrowable(Class<T> clazz, String key) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
+    // 优先获取 str 函数
+    try {
+      return clazz.getConstructor(String.class).newInstance(key);
+    } catch (Exception e) {
+      // 获取默认构造函数
+      return clazz.getConstructor().newInstance();
+    }
+
   }
 
   /**
@@ -201,10 +227,10 @@ public final class AnnotationProcess {
    * @param argMaps 组合参数
    * @return 锁对象
    */
-  private RedisLock buildLockObject(RedisLocks lock, Object target, Method method, Object[] args, Map<String, Object> argMaps){
+  private IRedisLock buildLockObject(RedisLock lock, Object target, Method method, Object[] args, Map<String, Object> argMaps){
     RedisLockBuilder builder = RedisLockBuilder.builder(buildKey(lock, target, method, argMaps));
     // 锁定时间
-    if (lock.lockedSeconds() != RedisLocks.DEFAULT_INT) {
+    if (lock.lockedSeconds() != RedisLock.DEFAULT_INT) {
       builder.lockSeconds(lock.lockedSeconds());
     }
     return builder.build();
@@ -218,11 +244,11 @@ public final class AnnotationProcess {
    * @param args 参数
    * @return key
    */
-  private String buildKey(RedisLocks lock, Object target, Method method, Map<String, Object> args){
+  private String buildKey(RedisLock lock, Object target, Method method, Map<String, Object> args){
     String key = StringUtils.isEmpty(lock.key()) ? lock.value() : lock.key();
     // 解析 key
     // 如果是默认的，则直接生成
-    if (RedisLocks.DEFAULT_METHOD.equals(key)){
+    if (RedisLock.DEFAULT_METHOD.equals(key)){
       return method.toString();
     }
     // 生成

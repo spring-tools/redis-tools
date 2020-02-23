@@ -59,7 +59,7 @@ public class RedisLockClient {
    * @param lockSeconds 锁定时长，单位秒
    * @return 设置结果
    */
-  public <T> boolean setNX(String key, String value, int lockSeconds) {
+  public boolean setNx(String key, String value, int lockSeconds) {
     return redisTemplate.execute((RedisConnection connection) -> {
       try {
        if (connection.set(RedislockUtils.stringToBytes(key), RedislockUtils.stringToBytes(value), Expiration.seconds(lockSeconds), SetOption.SET_IF_ABSENT)) {
@@ -80,7 +80,7 @@ public class RedisLockClient {
    * @param value 锁值
    * @return
    */
-  public <T> boolean releaseByLua(String key, String value) {
+  public boolean releaseByLua(String key, String value) {
     return redisTemplate.execute((RedisConnection connection) -> {
       try {
         if (connection.eval(RedislockUtils.stringToBytes(RELEASE_LUA), ReturnType.BOOLEAN, 1, RedislockUtils.stringToBytes(key), RedislockUtils.stringToBytes(value))) {

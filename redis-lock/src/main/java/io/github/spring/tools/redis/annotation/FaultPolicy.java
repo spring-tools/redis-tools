@@ -1,5 +1,7 @@
 package io.github.spring.tools.redis.annotation;
 
+import io.github.spring.tools.redis.RedisLockBuilder;
+
 /**
  * 失败处理策略
  *
@@ -9,7 +11,7 @@ package io.github.spring.tools.redis.annotation;
 public enum FaultPolicy {
 
   /**
-   * 替代，需要设置 {@link RedisLocks#fallbackMethod()} 方法
+   * 替代，需要设置 {@link RedisLock#fallbackMethod()} 方法
    */
   REPLACE,
 
@@ -19,7 +21,7 @@ public enum FaultPolicy {
   DO_NOTHING,
 
   /**
-   * 抛出异常 抛出 {@link net.madtiger.lock.exception.TimeoutSharedLockException}
+   * 抛出异常，相当于 {@link RedisLockBuilder#getThrowableException()}
    */
   THROWABLE,
 
@@ -29,7 +31,7 @@ public enum FaultPolicy {
   CONTINUE,
 
   /**
-   * 自动处理, 如果 {@link RedisLocks#fallbackMethod()} 设置了，则走 回退，否则 {@link RedisLocks#throwable()} 抛出异常
+   * 自动处理, 如果 {@link RedisLock#fallbackMethod()} 设置了，则走 回退，否则走  {@link #THROWABLE}
    */
   AUTO
 

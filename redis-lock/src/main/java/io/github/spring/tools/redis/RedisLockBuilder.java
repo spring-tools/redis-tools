@@ -43,6 +43,11 @@ public class RedisLockBuilder {
   private int spinTimes = DEFAULT_EMPTY;
 
   /**
+   * key前缀
+   */
+  private String keyPrefix;
+
+  /**
    * 回滚时抛出异常
    */
   private RuntimeException throwableException;
@@ -116,6 +121,16 @@ public class RedisLockBuilder {
   }
 
   /**
+   * key 的前缀
+   * @param keyPrefix
+   * @return chain
+   */
+  public RedisLockBuilder keyPrefix(String keyPrefix){
+    this.keyPrefix = keyPrefix;
+    return this;
+  }
+
+  /**
    * 添加多个装饰者
    * @param classes 装饰者类
    * @return chain 对象
@@ -143,7 +158,7 @@ public class RedisLockBuilder {
    * 开始生成
    * @return RedisLock
    */
-  public RedisLock build(){
+  public IRedisLock build(){
     DefaultRedisLock lock = new DefaultRedisLock(
             RedisLockEnvironment.getInstance().getRedisTemplate(),
             key,
@@ -153,7 +168,7 @@ public class RedisLockBuilder {
             getDefaultValue(spinTimes, DEFAULT_SPIN_TIME),
             throwableException
             );
-    return RedislockUtils.mergeEnv(lock, decorators);
+    return RedislockUtils.mergeEnv(lock, decorators, keyPrefix);
   }
 
 
@@ -177,20 +192,13 @@ public class RedisLockBuilder {
   }
 
   /**
-   * 生成 一个 builder
-   * @return builder 对象
-   */
-  public static RedisLockBuilder builder(){
-    return builder(null);
-  }
-
-  /**
    * 设置 全局环境
    * @param redisTemplate 设置 环境
    * @return 环境对象
    */
   public RedisLockEnvironment buildEnv(RedisTemplate redisTemplate){
-    return new RedisLockEnvironment(redisTemplate, this);
+    new RedisLockEnvironment(redisTemplate, this);
+    return RedisLockEnvironment.getInstance();
   }
 
   /**

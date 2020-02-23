@@ -11,19 +11,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * 共享锁 配置导入类
  * @author Fenghu.Shi
- * @version 1.0
+ * @version 1.0.0
  */
 @Slf4j
-public class SharedLockConfigurationImportSelector implements ImportSelector {
+public class RedisLockConfigurationImportSelector implements ImportSelector {
 
-  private static final Object lockObject = new Object();
+  private static final Object LOCK_OBJECT = new Object();
 
-  private static final AtomicBoolean isInit = new AtomicBoolean(false);
+  private static final AtomicBoolean IS_INIT = new AtomicBoolean(false);
 
   @Override
   public String[] selectImports(AnnotationMetadata importingClassMetadata) {
-    synchronized (lockObject) {
-      if (isInit.get()) {
+    synchronized (LOCK_OBJECT) {
+      if (IS_INIT.get()) {
         log.error("SharedLock 重复加载，本次忽略");
         return new String[]{};
       }
@@ -35,7 +35,7 @@ public class SharedLockConfigurationImportSelector implements ImportSelector {
             Class.forName(clazz, false, getClass().getClassLoader());
           }
           log.debug("共享锁 {} 客户端加载成功", classes.getValue());
-          isInit.set(true);
+          IS_INIT.set(true);
           return new String[] {classes.getValue()};
         } catch (Throwable ex) {
           log.debug("共享锁 {} 客户端装载失败，没有引用相关依赖包", classes.getValue());

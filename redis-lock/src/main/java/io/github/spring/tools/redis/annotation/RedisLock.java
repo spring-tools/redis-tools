@@ -1,5 +1,8 @@
 package io.github.spring.tools.redis.annotation;
 
+import io.github.spring.tools.redis.exception.NoopLockException;
+import io.github.spring.tools.redis.exception.TimeoutLockException;
+import io.github.spring.tools.redis.exception.UnLockFailException;
 import org.springframework.core.annotation.AliasFor;
 
 import java.lang.annotation.*;
@@ -15,7 +18,7 @@ import java.lang.reflect.Method;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @Inherited
-public @interface RedisLocks {
+public @interface RedisLock {
 
   /**
    * 锁定的key，支持变量，#{paramName1} #{paramName2} #{paramName3}，调用 tostring 方法生成，null=""
@@ -30,21 +33,9 @@ public @interface RedisLocks {
   String key() default DEFAULT_METHOD;
 
   /**
-   * 执行服务提供bean名称，默认根据 类型获取
-   */
-  String provider() default "";
-
-  /**
-   * 最大等待时间，单位毫秒，如果 = 1 则表示只尝试一次
-   */
-  int waitTimeoutMills() default 500;
-
-
-  /**
-   * 锁最长可以持有时间，单位秒，默认 是 {@link #waitTimeoutMills} 的 4 倍时间
+   * 锁最长可以持有时间，单位秒，默认 是 {@link io.github.spring.tools.redis.capable.ILockWritable#DEFAULT_LOCK_SECONDS}
    */
   int lockedSeconds() default DEFAULT_INT;
-
 
   /**
    * 回调函数，该函数必须是当前对象的公共方法，参数也相同，不需要返回值
@@ -60,6 +51,22 @@ public @interface RedisLocks {
    * 获取所失败执行策略，默认是自动，具体见 {@link FaultPolicy#AUTO}
    */
   FaultPolicy faultPolicy() default FaultPolicy.AUTO;
+
+  /**
+   * 最长等待时间，单位秒
+   * @return
+   */
+  int waitTimeoutMills() default DEFAULT_INT;
+
+  /**
+   * 获取锁失败抛出的异常，如果定义了异常，则默认
+   */
+  Class<? extends Throwable> faultThrowableException() default TimeoutLockException.class;
+
+  /**
+   * 回滚失败抛出的异常，如果不设置，则忽略
+   */
+  Class<? extends Throwable> rollbackThrowableException() default UnLockFailException.class;
 
   /**
    * 默认值

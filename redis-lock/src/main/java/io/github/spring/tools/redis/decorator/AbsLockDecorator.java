@@ -1,6 +1,6 @@
 package io.github.spring.tools.redis.decorator;
 
-import io.github.spring.tools.redis.RedisLock;
+import io.github.spring.tools.redis.IRedisLock;
 import io.github.spring.tools.redis.RedisLockReleaseStatus;
 import io.github.spring.tools.redis.RedisLockStatus;
 import io.github.spring.tools.redis.capable.ILockWritable;
@@ -14,12 +14,12 @@ import java.util.concurrent.TimeUnit;
  * @author Fenghu.Shi
  * @version 1.2.0
  */
-public abstract class AbsLockDecorator implements RedisLock, ILockWritable {
+public abstract class AbsLockDecorator implements IRedisLock, ILockWritable {
 
   /**
    * 处理实例
    */
-  protected RedisLock delegate;
+  protected IRedisLock delegate;
 
 
   /**
@@ -46,7 +46,7 @@ public abstract class AbsLockDecorator implements RedisLock, ILockWritable {
    * 构造一个 包装器实例
    * @param delegate 实际执行者
    */
-  public AbsLockDecorator(RedisLock delegate){
+  public AbsLockDecorator(IRedisLock delegate){
     this.delegate = delegate;
   }
 
@@ -58,6 +58,11 @@ public abstract class AbsLockDecorator implements RedisLock, ILockWritable {
   @Override
   public String getKey() {
     return delegate.getKey();
+  }
+
+  @Override
+  public void setKey(String key) {
+    ((ILockWritable) delegate).setKey(key);
   }
 
   @Override
@@ -115,7 +120,7 @@ public abstract class AbsLockDecorator implements RedisLock, ILockWritable {
    * @param message 消息
    */
   protected void debugMessage(String message){
-    getLogger().debug(String.format("%s:SharedLockDecorator --> %s 锁 %s", getClass().getSimpleName(), getKey(), message));
+    getLogger().debug(String.format("%s:RedisLockDecorator --> %s 锁 %s", getClass().getSimpleName(), getKey(), message));
   }
 
   /**
@@ -123,7 +128,7 @@ public abstract class AbsLockDecorator implements RedisLock, ILockWritable {
    * @param message 消息
    */
   protected void infoMessage(String message){
-    getLogger().info(String.format("%s:SharedLockDecorator --> %s 锁 %s", getClass().getSimpleName(), getKey(), message));
+    getLogger().info(String.format("%s:RedisLockDecorator --> %s 锁 %s", getClass().getSimpleName(), getKey(), message));
   }
 
   /**
@@ -131,7 +136,7 @@ public abstract class AbsLockDecorator implements RedisLock, ILockWritable {
    * @param message 消息
    */
   protected void errorMessage(String message){
-    getLogger().error(String.format("%s:SharedLockDecorator --> %s 锁 %s", getClass().getSimpleName(), getKey(), message));
+    getLogger().error(String.format("%s:RedisLockDecorator --> %s 锁 %s", getClass().getSimpleName(), getKey(), message));
   }
 
   @Override

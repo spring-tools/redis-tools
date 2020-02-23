@@ -3,6 +3,7 @@ package io.github.spring.tools.redis;
 import io.github.spring.tools.redis.capable.ILockWritable;
 import lombok.Getter;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.util.StringUtils;
 
 import java.util.Objects;
 
@@ -37,6 +38,8 @@ public class RedisLockEnvironment {
    */
   RedisLockEnvironment(RedisTemplate<String, String> redisTemplate, RedisLockBuilder builder){
     Objects.requireNonNull(redisTemplate);
+    Objects.requireNonNull(builder);
+    this.builder = builder;
     this.redisTemplate = redisTemplate;
     INSTANCE = this;
   }
@@ -51,17 +54,27 @@ public class RedisLockEnvironment {
   }
 
   /**
-   * 开始设置
-   * @param lock
+   * 获取 已设置的 builder
+   * @return
    */
-  void merge(RedisLock lock){
+  public static RedisLockBuilder getBuilder(){
+    Objects.requireNonNull(INSTANCE);
+    return INSTANCE.builder;
+  }
+
+
+  /**
+   * 开始设置
+   * @param lock 设置的 锁对象
+   * @param keyPrefix key 原始的前缀
+   */
+  void merge(IRedisLock lock, String keyPrefix){
     // 检查是否可设置
     if (lock.getStatus() != RedisLockStatus.NEW){
       throw new IllegalArgumentException(String.format("%s 状态的锁不可以设置参数", lock.getStatus()));
     }
     // 开启设置
     ILockWritable writable = (ILockWritable) lock;
-    // 开始设置
     if (!builder.isDefault(builder.getLockSeconds())){
       writable.setLockSeconds(builder.getLockSeconds());
     }
@@ -75,6 +88,10 @@ public class RedisLockEnvironment {
       writable.setLockSeconds(builder.getSleepMaxMills());
     }
 
+    // 设置 prefix
+    if (!StringUtils.isEmpty(builder.getKeyPrefix()) && StringUtils.isEmpty(keyPrefix)) {
+      writable.setKey(String.format("%s-%s", builder.getKeyPrefix(), lock.getKey()));
+    }
   }
 
 

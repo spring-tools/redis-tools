@@ -1,6 +1,6 @@
 package io.github.spring.tools.redis;
 
-import io.github.spring.tools.redis.capable.ILockExecutable;
+import io.github.spring.tools.redis.capable.ILockTemplate;
 import io.github.spring.tools.redis.capable.ILock;
 
 /**
@@ -10,8 +10,6 @@ import io.github.spring.tools.redis.capable.ILock;
  * @author Fenghu.Shi
  * @version 1.0.0
  */
-public interface RedisLock extends ILockExecutable, ILock {
-
-
+public interface IRedisLock extends ILockTemplate, ILock {
 
 }

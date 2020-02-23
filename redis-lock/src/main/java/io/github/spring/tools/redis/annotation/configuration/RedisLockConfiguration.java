@@ -1,9 +1,10 @@
 package io.github.spring.tools.redis.annotation.configuration;
 
 import io.github.spring.tools.redis.RedisLockBuilder;
+import io.github.spring.tools.redis.annotation.RedisLockInterceptor;
 import io.github.spring.tools.redis.decorator.AbsLockDecorator;
 import io.github.spring.tools.redis.decorator.ReentrantLockDecorator;
-import io.github.spring.tools.redis.decorator.SpinLockDecorator;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -19,23 +20,25 @@ import java.util.List;
  */
 public  class RedisLockConfiguration{
 
+  @Autowired
+  private RedisTemplate redisTemplate;
+
   /**
    * 创建 共享锁 拦截器
    * @param context spring 上下文
    * @return interceptor
    */
   @Bean
-  public SharedLockInterceptor annotationSharedLoadInterceptor(ApplicationContext context){
-    return new SharedLockInterceptor(context);
+  public RedisLockInterceptor annotationSharedLoadInterceptor(ApplicationContext context){
+    return new RedisLockInterceptor(context);
   }
 
   /**
    * 初始化 lock
-   * @param redisTemplate redis template
    */
   @PostConstruct
-  public void initRedisLock(RedisTemplate redisTemplate){
-    RedisLockBuilder.builder().addDecorators(defaultDecorators()).buildEnv(redisTemplate);
+  public void initRedisLock(){
+    RedisLockBuilder.builder("").keyPrefix("redis-lock").addDecorators(defaultDecorators()).buildEnv(redisTemplate);
   }
 
   /**
@@ -43,7 +46,7 @@ public  class RedisLockConfiguration{
    * @return 默认支持的 decorator
    */
   private List<Class<? extends AbsLockDecorator>> defaultDecorators() {
-    return Arrays.asList(SpinLockDecorator.class, ReentrantLockDecorator.class);
+    return Arrays.asList(ReentrantLockDecorator.class);
   }
 
 }

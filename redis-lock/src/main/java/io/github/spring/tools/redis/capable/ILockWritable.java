@@ -14,14 +14,20 @@ public interface ILockWritable {
 
     /**
      * 设置 状态
-     * @param status
+     * @param status 要设置的状态
      */
     void setStatus(RedisLockStatus status);
 
     /**
+     * 设置 key
+     * @param key 要设置的key
+     */
+    void setKey(String key);
+
+    /**
      * 当前状态
-     * @param status
-     * @return
+     * @param status 要检查的状态
+     * @return 是否一致
      */
     default boolean isStatus(RedisLockStatus status) {
         return getStatus() == status;
@@ -29,7 +35,7 @@ public interface ILockWritable {
 
     /**
      * 是否需要解锁
-     * @return
+     * @return 是否需要解锁
      */
     boolean needUnlock();
 
@@ -48,19 +54,19 @@ public interface ILockWritable {
 
     /**
      * 获取lock的时间
-     * @return
+     * @return 锁定时长
      */
     int getLockSeconds();
 
     /**
      * 设置 休眠最小时间，单位毫秒
-     * @param sleepMinMills
+     * @param sleepMinMills 最小休眠时间
      */
     void setSleepMinMills(int sleepMinMills);
 
     /**
      * 获取最小休眠时间，毫秒
-     * @return
+     * @return 当前最小休眠时间
      */
     int getSleepMinMills();
 
