@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.spring-tools</groupId>
   <artifactId>redis-tools</artifactId>
-  <version>1.0.0</version>
+  <version>1.0.1-SNAPSHOT</version>
   <modules>
     <module>redis-core</module>
     <module>redis-lock</module>
@@ -138,7 +138,7 @@
     <url>https://github.com/spring-tools/redis-tools</url>
     <connection>scm:git:ssh://git@github.com/spring-tools/redis-tools.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/spring-tools/redis-tools.git</developerConnection>
-    <tag>redis-tools-1.0.0</tag>
+    <tag>HEAD</tag>
   </scm>
 
 
