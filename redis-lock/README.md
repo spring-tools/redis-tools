@@ -62,11 +62,9 @@ try{
 1.  1. 配置回退方法，只支持在同一个service target中的方法，函数签名必须和执行函数一致。
 使用 `RedisLock#fallbackMethod`和`RedisLock#rollbackMethod`配置
 
-配置失败抛出异常
+1.  2. 配置失败抛出异常
 `RedisLock#faultThrowableException`和`RedisLock#rollbackThrowableException` 属性配置其
 
-
-2. 
 
 ### 4. template 方式
 
