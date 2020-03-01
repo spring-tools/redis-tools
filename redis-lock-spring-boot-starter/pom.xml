@@ -3,7 +3,7 @@
     <parent>
         <artifactId>redis-tools</artifactId>
         <groupId>io.github.spring-tools</groupId>
-        <version>1.0.1-SNAPSHOT</version>
+        <version>1.1.0</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <name>Redis Lock Spring boot starter</name>
