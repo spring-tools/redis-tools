@@ -16,7 +16,7 @@ Redis 的 分布式锁，支持特性：
 
 **具体介绍** 见 [Redis-Lock](./redis-lock)
 
-> 当前最新版本 ` lastVersion = 1.0.0`
+> 当前最新版本 ` lastVersion = 1.1.0`
 
 ### 1、MAVEN 引用
 
