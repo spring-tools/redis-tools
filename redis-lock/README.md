@@ -19,7 +19,7 @@ Redis分布式共享锁，支持多种模式
 
 ## 一、快速开始
 
-` lastVersion = 1.0.0`
+` lastVersion = 1.1.0`
 
 ### 1、MAVEN 引用
 
