@@ -160,6 +160,23 @@ public class DisLockApplication {
 > 这里注意，只需要定义一次即可，比如可以交由`@PostConstruct`实现。
 
 
+## 限流器
+
+类似 GUAVA RateLimiter 限流器，暂时不能处理热增长。
+
+**第一次启动时，默认会存储 **
+
+```java
+// 立即获取 5个，不够则立即返回
+RedisRateLimiter.create(LOCK_KEY, 10, 1.0).tryAcquire(5));
+// 2秒内获取
+RedisRateLimiter.create(LOCK_KEY, 10, 1.0).tryAcquire(15, 2, TimeUnit.SECONDS);
+// 获取当前所有可用的令牌数
+limiter.tryGetAllPermits();
+```
+
+
+
 ##  版本更新 
 
 

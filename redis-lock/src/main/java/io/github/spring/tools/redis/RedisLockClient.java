@@ -6,6 +6,10 @@ import org.springframework.data.redis.connection.RedisStringCommands.SetOption;
 import org.springframework.data.redis.connection.ReturnType;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.types.Expiration;
+import org.springframework.util.Assert;
+
+import java.util.List;
+import java.util.Objects;
 
 /**
  * 基于spring 的共享锁客户端
@@ -19,6 +23,11 @@ public class RedisLockClient {
    * 解锁的lua脚本
    */
   private static final String RELEASE_LUA;
+
+  /**
+   * 获取当前时间的LUA命令
+   */
+  private static final String TIME_LUA = "return redis.call('TIME')";
 
   static {
     StringBuilder sb = new StringBuilder();
@@ -47,8 +56,22 @@ public class RedisLockClient {
    * @param key 锁的key
    * @return
    */
-  public <T> String get(String key) {
+  public String get(String key) {
     return redisTemplate.opsForValue().get(key);
+  }
+
+  /**
+   * 设置 数据
+   * https://redis.io/commands/set
+   * @param key key
+   * @param value 值
+   * @param isPersist 是否需要持久化
+   */
+  public void set(String key, String value, boolean isPersist){
+    redisTemplate.opsForValue().set(key, value);
+    if (isPersist){
+      redisTemplate.persist(key);
+    }
   }
 
   /**
@@ -95,13 +118,50 @@ public class RedisLockClient {
   }
 
   /**
+   * 执行 script
+   * @param script 要执行的 script
+   * @return 值
+   */
+  public <T> List<T> execScriptList(String script){
+    return redisTemplate.execute((RedisConnection connection) -> {
+      return connection.eval(RedislockUtils.stringToBytes(script), ReturnType.MULTI, 0);
+    });
+  }
+
+  /**
+   * 获取当前 redis 时间
+   * @return 结果
+   */
+  public long queryRedisNow(){
+    List<byte[]> times = execScriptList(TIME_LUA);
+    StringBuilder strs = new StringBuilder();
+    Objects.requireNonNull(times);
+    Assert.isTrue(times.size()  == 2, "从 redis 获取 当前服务器时间失败");
+    Assert.isTrue(times.get(1).length > 3, "从 redis 获取 当前服务器时间失败");
+    // 取秒
+    strs.append(new String(times.get(0)));
+    strs.append(new String(times.get(1)).substring(0, 3));
+    System.out.println("now is " + new String(times.get(0)) + new String(times.get(1)));
+    return Long.valueOf(strs.toString());
+  }
+
+  /**
    * 删除 key
    * https://redis.io/commands/del
    * @param key 锁 key
    * @return
    */
-  public <T> boolean delete(String key) {
+  public boolean delete(String key) {
     return redisTemplate.delete(key);
+  }
+
+
+  /**
+   * 获取 redis  template
+   * @return redis template 对象
+   */
+  public RedisTemplate<String, String> getRedisTemplate(){
+    return redisTemplate;
   }
 
 }

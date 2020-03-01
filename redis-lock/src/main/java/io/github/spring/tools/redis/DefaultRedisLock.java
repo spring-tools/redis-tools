@@ -114,10 +114,18 @@ public class DefaultRedisLock implements IRedisLock, ILockWritable {
     }
 
     @Override
+    public RedisLockClient getLockClient() {
+        return redisLockClient;
+    }
+
+    @Override
     public boolean tryLock() {
         // 获取锁
         if (doAcquire(this)){
             setStatus(RedisLockStatus.LOCKED);
+            // 重置 release
+            setReleaseStatus(RedisLockReleaseStatus.NEW);
+            // 打印日志
             debugMessage("获取锁成功");
             return true;
         }
@@ -182,10 +190,10 @@ public class DefaultRedisLock implements IRedisLock, ILockWritable {
 
     /**
      * 支持自旋的 获取
-     * @param time
-     * @param unit
-     * @return
-     * @throws InterruptedException
+     * @param time 时间
+     * @param unit 单位
+     * @return 结果
+     * @throws InterruptedException 线程中断
      */
     private boolean doAcquire(long time, TimeUnit unit) throws InterruptedException, TimeoutException {
         long timeout = System.currentTimeMillis() + unit.toMillis(time);

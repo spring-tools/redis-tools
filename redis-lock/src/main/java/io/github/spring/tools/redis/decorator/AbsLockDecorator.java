@@ -1,6 +1,7 @@
 package io.github.spring.tools.redis.decorator;
 
 import io.github.spring.tools.redis.IRedisLock;
+import io.github.spring.tools.redis.RedisLockClient;
 import io.github.spring.tools.redis.RedisLockReleaseStatus;
 import io.github.spring.tools.redis.RedisLockStatus;
 import io.github.spring.tools.redis.capable.ILockWritable;
@@ -201,10 +202,16 @@ public abstract class AbsLockDecorator implements IRedisLock, ILockWritable {
   }
 
   @Override
+  public RedisLockClient getLockClient() {
+    return  ((ILockWritable) delegate).getLockClient();
+  }
+
+  @Override
   public void unlock() {
     delegate.unlock();
     debugMessage("释放锁成功");
   }
+
   /**
    * 默认的序号
    */

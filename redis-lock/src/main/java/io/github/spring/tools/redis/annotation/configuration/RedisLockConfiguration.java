@@ -38,7 +38,7 @@ public  class RedisLockConfiguration{
    */
   @PostConstruct
   public void initRedisLock(){
-    RedisLockBuilder.builder("").keyPrefix("redis-lock").addDecorators(defaultDecorators()).buildEnv(redisTemplate);
+    RedisLockBuilder.builder("").keyPrefix("redis-lock:").addDecorators(defaultDecorators()).buildEnv(redisTemplate);
   }
 
   /**

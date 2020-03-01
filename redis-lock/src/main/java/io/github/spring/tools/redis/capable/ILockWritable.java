@@ -1,5 +1,6 @@
 package io.github.spring.tools.redis.capable;
 
+import io.github.spring.tools.redis.RedisLockClient;
 import io.github.spring.tools.redis.RedisLockReleaseStatus;
 import io.github.spring.tools.redis.RedisLockStatus;
 
@@ -134,24 +135,29 @@ public interface ILockWritable {
         setReleaseStatus(release ? RedisLockReleaseStatus.SUCCESS : RedisLockReleaseStatus.FAIL);
     }
 
+    /**
+     * 获取 锁的客户端
+     * @return
+     */
+    RedisLockClient getLockClient();
 
     /**
      * 默认自旋数量
      */
-    public static final int DEFAULT_SPIN_TIME = 3;
+    static final int DEFAULT_SPIN_TIME = 3;
 
     /**
      * 最小休眠时间
      */
-    public static final int DEFAULT_SLEEP_MIN_MILLS = 200;
+    static final int DEFAULT_SLEEP_MIN_MILLS = 200;
 
     /**
      * 最大休眠时间
      */
-    public static final int DEFAULT_SLEEP_MAX_MILLS = 500;
+    static final int DEFAULT_SLEEP_MAX_MILLS = 500;
 
     /**
      * 默认锁定时长，单位秒
      */
-    public static final int DEFAULT_LOCK_SECONDS = 10;
+    static final int DEFAULT_LOCK_SECONDS = 10;
 }

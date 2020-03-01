@@ -1,6 +1,7 @@
 package io.github.spring.tools.redis.decorator;
 
 import io.github.spring.tools.redis.IRedisLock;
+import io.github.spring.tools.redis.RedisLockReleaseStatus;
 import io.github.spring.tools.redis.RedisLockStatus;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -30,7 +31,15 @@ public class ReentrantLockDecorator extends AbsLockDecorator {
     }
   };
 
+  /**
+   * 当前状态
+   */
   private RedisLockStatus currentStatus;
+
+  /**
+   * 当前 释放状态
+   */
+  private RedisLockReleaseStatus currentReleaseStatus;
 
   /**
    * 获取到锁的时间
@@ -62,6 +71,7 @@ public class ReentrantLockDecorator extends AbsLockDecorator {
     try {
       if (exisitsByThread()) {
         debugMessage("重用锁成功");
+        setReleaseStatus(RedisLockReleaseStatus.NEW);
         return true;
       }else {
         // 获取锁
@@ -81,6 +91,16 @@ public class ReentrantLockDecorator extends AbsLockDecorator {
   }
 
   @Override
+  public RedisLockReleaseStatus getReleaseStatus() {
+    return currentReleaseStatus;
+  }
+
+  @Override
+  public void setReleaseStatus(RedisLockReleaseStatus releaseStatus) {
+    this.currentReleaseStatus = releaseStatus;
+  }
+
+  @Override
   protected Logger getLogger() {
     return log;
   }
@@ -92,6 +112,7 @@ public class ReentrantLockDecorator extends AbsLockDecorator {
       delegate.unlock();
       debugMessage("彻底释放锁成功");
     }else {
+      setReleaseStatus(RedisLockReleaseStatus.SUCCESS);
       debugMessage("释放锁成功");
     }
   }
@@ -121,6 +142,8 @@ public class ReentrantLockDecorator extends AbsLockDecorator {
   public RedisLockStatus getStatus() {
     return currentStatus == null ? super.getStatus() : currentStatus;
   }
+
+
 
   /**
    * 把当前锁设置到当前线程中
